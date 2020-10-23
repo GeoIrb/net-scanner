@@ -6,9 +6,9 @@ import (
 	"github.com/ullaakut/nmap"
 )
 
-type nmapScan struct{}
+type nmapScanner struct{}
 
-func (n *nmapScan) Scan(targets []string, ports []string) (hosts []string, err error) {
+func (n *nmapScanner) Scan(targets []string, ports []string) (hosts []string, err error) {
 	s, err := nmap.NewScanner(
 		nmap.WithTargets(targets...),
 		nmap.WithPorts(ports...),
