@@ -1,0 +1,6 @@
+github.com/Ullaakut/nmap v2.0.0+incompatible h1:tNXub052dsnG8+yrgpph9nhVixIBdpRRgzvmQoc8eBA=
+github.com/Ullaakut/nmap v2.0.0+incompatible/go.mod h1:fkC066hwfcoKwlI7DS2ARTggSVtBTZYCjVH1TzuTMaQ=
+github.com/t94j0/array v0.0.0-20180426153242-68930562a6bd h1:RXtQ+gpgNU68cTZDcDTiP3OvInFVPVV1H/KJDd4B6VE=
+github.com/t94j0/array v0.0.0-20180426153242-68930562a6bd/go.mod h1:SApqaBuVRHQRjvoIbN++3aFXJjnWr0UkZM72QpvdFZA=
+github.com/t94j0/nmap v0.0.0-20190328161457-96d772f8fd99 h1:xqztXQdHMZfeqjYZBCOc6V4Hb6dCRd38GWMrBDHhDgY=
+github.com/t94j0/nmap v0.0.0-20190328161457-96d772f8fd99/go.mod h1:ChQqulPXGzYchkOwWqN0ZqGFs+K4UlQJfSVVokOmUpo=
