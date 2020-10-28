@@ -1,17 +1,26 @@
 package nmap
 
 import (
-	"fmt"
-
 	"github.com/ullaakut/nmap"
 )
 
-type nmapScan struct{}
+// Scanner ...
+type Scanner struct{}
 
-func (n *nmapScan) Scan(targets []string, ports []string) (hosts []string, err error) {
+// Scan ...
+func (n *Scanner) Scan(targets []string, ports []string) (hosts map[string][]uint16, err error) {
+	options := []func(*nmap.Scanner){}
+
+	if len(targets) != 0 {
+		options = append(options, nmap.WithTargets(targets...))
+	}
+
+	if len(ports) != 0 {
+		options = append(options, nmap.WithPorts(ports...))
+	}
+
 	s, err := nmap.NewScanner(
-		nmap.WithTargets(targets...),
-		nmap.WithPorts(ports...),
+		options...,
 	)
 	if err != nil {
 		return
@@ -22,8 +31,18 @@ func (n *nmapScan) Scan(targets []string, ports []string) (hosts []string, err e
 		return
 	}
 
+	hosts = make(map[string][]uint16)
 	for _, host := range scanResult.Hosts {
-		fmt.Println(host.Distance.Value)
+		ports := make([]uint16, 0, len(host.Ports))
+		for _, p := range host.Ports {
+			ports = append(ports, p.ID)
+		}
+		hosts[host.Addresses[0].String()] = ports
 	}
 	return
+}
+
+// NewScanner ...
+func NewScanner() *Scanner {
+	return &Scanner{}
 }
