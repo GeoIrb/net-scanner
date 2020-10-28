@@ -6,7 +6,7 @@ import (
 	"github.com/ullaakut/nmap"
 )
 
-type nmapScanner struct{}
+type Scanner struct{}
 
 func (n *nmapScanner) Scan(targets []string, ports []string) (hosts []string, err error) {
 	s, err := nmap.NewScanner(
@@ -26,4 +26,8 @@ func (n *nmapScanner) Scan(targets []string, ports []string) (hosts []string, er
 		fmt.Println(host.Distance.Value)
 	}
 	return
+}
+
+func NewNmapScanner(){
+	return 
 }
