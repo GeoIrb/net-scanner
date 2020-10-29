@@ -12,7 +12,7 @@ import (
 type NetScanner struct {
 	timeout      time.Duration
 	targets      []string
-	withListScan bool
+	withPingScan bool
 	ports        []string
 
 	nmapScanner *nmap.Scanner
@@ -21,21 +21,26 @@ type NetScanner struct {
 	state map[string][]uint16
 }
 
+// WithTargets sets the target of a scanner.
 func (s *NetScanner) WithTargets(targets ...string) *NetScanner {
 	s.targets = targets
 	return s
 }
 
+// WithPorts sets the ports which the scanner should scan on each host.
 func (s *NetScanner) WithPorts(ports ...string) *NetScanner {
 	s.ports = ports
 	return s
 }
 
-func (s *NetScanner) WithListScan() *NetScanner {
-	s.withListScan = true
+// WithPingScan sets the discovery mode to simply ping the targets to scan and not scan them and disables DNS resolution in the discovery
+// step of the nmap scan.
+func (s *NetScanner) WithPingScan() *NetScanner {
+	s.withPingScan = true
 	return s
 }
 
+// Configurate scanner
 func (s *NetScanner) Configurate() (err error) {
 	options := []func(*nmap.Scanner){}
 
@@ -43,8 +48,8 @@ func (s *NetScanner) Configurate() (err error) {
 		options = append(options, nmap.WithTargets(s.targets...))
 	}
 
-	if s.withListScan {
-		options = append(options, nmap.WithListScan())
+	if s.withPingScan {
+		options = append(options, nmap.WithPingScan(), nmap.WithDisabledDNSResolution())
 	} else {
 		if len(s.ports) != 0 {
 			options = append(options, nmap.WithPorts(s.ports...))
@@ -55,9 +60,12 @@ func (s *NetScanner) Configurate() (err error) {
 	return
 }
 
+// Scan network
 func (s *NetScanner) Scan() (state map[string][]uint16, events []Event, err error) {
 	if s.nmapScanner == nil {
-		return
+		if err = s.Configurate(); err != nil {
+			return
+		}
 	}
 
 	result, _, err := s.nmapScanner.Run()
@@ -74,6 +82,7 @@ func (s *NetScanner) Scan() (state map[string][]uint16, events []Event, err erro
 	return
 }
 
+// GetState after last scan
 func (s *NetScanner) GetState() (state map[string][]uint16) {
 	s.mutex.RLock()
 	state = s.state
@@ -81,6 +90,9 @@ func (s *NetScanner) GetState() (state map[string][]uint16) {
 	return
 }
 
+// Run periodic scanning
+// state - first state of network
+// events - channel for events
 func (s *NetScanner) Run(ctx context.Context) (state map[string][]uint16, events <-chan []Event, err error) {
 	if err = s.Configurate(); err != nil {
 		return
@@ -121,9 +133,15 @@ func (s *NetScanner) parse(result *nmap.Run) (state map[string][]uint16) {
 	for _, host := range result.Hosts {
 		ports := make([]uint16, 0, len(host.Ports))
 		for _, port := range host.Ports {
-			ports = append(ports, port.ID)
+			if port.State.String() == "open" {
+				ports = append(ports, port.ID)
+			}
+		}
+		if len(ports) != 0 || s.withPingScan {
+			state[host.Addresses[0].String()] = ports
 		}
 	}
+
 	return
 }
 
@@ -149,6 +167,7 @@ func (s *NetScanner) compare(state map[string][]uint16) (events []Event) {
 	return
 }
 
+// NewNetScanner ...
 func NewNetScanner() *NetScanner {
 	return &NetScanner{}
 }
