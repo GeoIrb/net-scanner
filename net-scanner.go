@@ -21,6 +21,21 @@ type Scanner struct {
 	state map[string][]uint16
 }
 
+func (s *Scanner) WithTargets(targets ...string) *Scanner {
+	s.targets = targets
+	return s
+}
+
+func (s *Scanner) WithPorts(ports ...string) *Scanner {
+	s.ports = ports
+	return s
+}
+
+func (s *Scanner) WithListScan() *Scanner {
+	s.withListScan = true
+	return s
+}
+
 func (s *Scanner) Configurate() (err error) {
 	options := []func(*nmap.Scanner){}
 
@@ -40,23 +55,19 @@ func (s *Scanner) Configurate() (err error) {
 	return
 }
 
-func (s *Scanner) Scan() (state map[string][]uint16, err error) {
+func (s *Scanner) Scan() (state map[string][]uint16, events []Event, err error) {
 	if s.nmapScanner == nil {
 		return
 	}
 
-	res, _, err := s.nmapScanner.Run()
+	result, _, err := s.nmapScanner.Run()
 	if err != nil {
 		return
 	}
 
-	state = make(map[string][]uint16)
-	for _, host := range res.Hosts {
-		ports := make([]uint16, 0, len(host.Ports))
-		for _, port := range host.Ports {
-			ports = append(ports, port.ID)
-		}
-	}
+	state = s.parse(result)
+	events = s.compare(state)
+
 	s.mutex.Lock()
 	s.state = state
 	s.mutex.Unlock()
@@ -75,7 +86,7 @@ func (s *Scanner) Run(ctx context.Context) (state map[string][]uint16, events <-
 	if err = s.Configurate(); err != nil {
 		return
 	}
-	if state, err = s.Scan(); err != nil {
+	if state, _, err = s.Scan(); err != nil {
 		return
 	}
 
@@ -88,11 +99,11 @@ func (s *Scanner) Run(ctx context.Context) (state map[string][]uint16, events <-
 			case <-ctx.Done():
 				return
 			case <-tick:
-				state, err := s.Scan()
+				_, events, err := s.Scan()
 				if err != nil {
 					return
 				}
-				if events := s.compare(state); events != nil {
+				if events != nil {
 					eventCh <- events
 				}
 			}
@@ -102,6 +113,18 @@ func (s *Scanner) Run(ctx context.Context) (state map[string][]uint16, events <-
 	return
 }
 
+func (s *Scanner) parse(result *nmap.Run) (state map[string][]uint16) {
+	state = make(map[string][]uint16)
+	for _, host := range result.Hosts {
+		ports := make([]uint16, 0, len(host.Ports))
+		for _, port := range host.Ports {
+			ports = append(ports, port.ID)
+		}
+	}
+	return
+}
+
 func (s *Scanner) compare(state map[string][]uint16) (events []Event) {
+	//todo
 	return
 }
