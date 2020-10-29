@@ -9,6 +9,6 @@ const (
 
 // Event struct
 type Event struct {
-	Type string
+	Type int
 	Host string
 }

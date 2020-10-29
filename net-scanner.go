@@ -8,8 +8,8 @@ import (
 	"github.com/ullaakut/nmap"
 )
 
-// Scanner net-scanner
-type Scanner struct {
+// NetScanner net-scanner
+type NetScanner struct {
 	timeout      time.Duration
 	targets      []string
 	withListScan bool
@@ -21,22 +21,22 @@ type Scanner struct {
 	state map[string][]uint16
 }
 
-func (s *Scanner) WithTargets(targets ...string) *Scanner {
+func (s *NetScanner) WithTargets(targets ...string) *NetScanner {
 	s.targets = targets
 	return s
 }
 
-func (s *Scanner) WithPorts(ports ...string) *Scanner {
+func (s *NetScanner) WithPorts(ports ...string) *NetScanner {
 	s.ports = ports
 	return s
 }
 
-func (s *Scanner) WithListScan() *Scanner {
+func (s *NetScanner) WithListScan() *NetScanner {
 	s.withListScan = true
 	return s
 }
 
-func (s *Scanner) Configurate() (err error) {
+func (s *NetScanner) Configurate() (err error) {
 	options := []func(*nmap.Scanner){}
 
 	if len(s.targets) != 0 {
@@ -55,7 +55,7 @@ func (s *Scanner) Configurate() (err error) {
 	return
 }
 
-func (s *Scanner) Scan() (state map[string][]uint16, events []Event, err error) {
+func (s *NetScanner) Scan() (state map[string][]uint16, events []Event, err error) {
 	if s.nmapScanner == nil {
 		return
 	}
@@ -74,15 +74,14 @@ func (s *Scanner) Scan() (state map[string][]uint16, events []Event, err error) 
 	return
 }
 
-func (s *Scanner) GetState() (state map[string][]uint16) {
+func (s *NetScanner) GetState() (state map[string][]uint16) {
 	s.mutex.RLock()
 	state = s.state
 	s.mutex.RUnlock()
 	return
 }
 
-// Run ...
-func (s *Scanner) Run(ctx context.Context) (state map[string][]uint16, events <-chan []Event, err error) {
+func (s *NetScanner) Run(ctx context.Context) (state map[string][]uint16, events <-chan []Event, err error) {
 	if err = s.Configurate(); err != nil {
 		return
 	}
@@ -92,13 +91,17 @@ func (s *Scanner) Run(ctx context.Context) (state map[string][]uint16, events <-
 
 	eventCh := make(chan []Event)
 	go func() {
-		defer close(eventCh)
-		tick := time.Tick(s.timeout)
+		tick := time.NewTicker(s.timeout)
+		defer func() {
+			close(eventCh)
+			tick.Stop()
+		}()
+
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-tick:
+			case <-tick.C:
 				_, events, err := s.Scan()
 				if err != nil {
 					return
@@ -113,7 +116,7 @@ func (s *Scanner) Run(ctx context.Context) (state map[string][]uint16, events <-
 	return
 }
 
-func (s *Scanner) parse(result *nmap.Run) (state map[string][]uint16) {
+func (s *NetScanner) parse(result *nmap.Run) (state map[string][]uint16) {
 	state = make(map[string][]uint16)
 	for _, host := range result.Hosts {
 		ports := make([]uint16, 0, len(host.Ports))
@@ -124,7 +127,28 @@ func (s *Scanner) parse(result *nmap.Run) (state map[string][]uint16) {
 	return
 }
 
-func (s *Scanner) compare(state map[string][]uint16) (events []Event) {
-	//todo
+func (s *NetScanner) compare(state map[string][]uint16) (events []Event) {
+	for host := range state {
+		if _, isExist := s.state[host]; !isExist {
+			events = append(events,
+				Event{
+					Type: TurnOnHostEvent,
+					Host: host,
+				})
+		}
+	}
+	for host := range s.state {
+		if _, isExist := state[host]; !isExist {
+			events = append(events,
+				Event{
+					Type: TurnOffHostEvent,
+					Host: host,
+				})
+		}
+	}
 	return
+}
+
+func NewNetScanner() *NetScanner {
+	return &NetScanner{}
 }
