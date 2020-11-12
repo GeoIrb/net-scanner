@@ -168,6 +168,9 @@ func (s *NetScanner) compare(state map[string][]uint16) (events []Event) {
 }
 
 // NewNetScanner ...
-func NewNetScanner() *NetScanner {
-	return &NetScanner{}
+// timeout is period of scan network
+func NewNetScanner(timeout time.Duration) *NetScanner {
+	return &NetScanner{
+		timeout: timeout,
+	}
 }
